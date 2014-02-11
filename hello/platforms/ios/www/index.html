@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+     KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+-->
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <script type="text/javascript" src="cordova.js"></script>
+        <title>Mobile OData Demo</title>
+        
+        <script id='sap-ui-bootstrap'
+            src='resources/sap-ui-core.js'
+            data-sap-ui-theme='sap_mvi'
+            data-sap-ui-libs='sap.m'
+            data-sap-ui-xx-test-mobile = "true"
+            data-sap-ui-xx-fakeOS = "android">
+            </script>
+        
+        <script>
+            (function() {
+             var app = new sap.m.App("ODataDemo");
+             
+             // main page
+             var appStartPage = new sap.m.Page("startPage", {
+                                               title : "List Overview",
+                                               footer : new sap.m.Bar({
+                                                                      contentMiddle : [ new sap.m.Label({
+                                                                                                        text : "Mobile OData Demo"
+                                                                                                        }) ]
+                                                                      })
+                                               });
+             
+             var Bar = new sap.m.Bar({
+                                     contentLeft: [],
+                                     contentMiddle: [new sap.m.Label('BarTitle', {text: "Products"})],
+                                     contentRight: []
+                                     });
+             appStartPage.setCustomHeader(Bar);
+             
+             var oListStandardNoImageNoHeader = new sap.m.List({
+                                                               inset : false
+                                                               });
+             itemTemplate = new sap.m.StandardListItem({
+                                                       title : '{ProductName}',
+                                                       tap: function(oEvent) {
+                                                       detailPage.setBindingContext(oEvent.getSource().getBindingContext());
+                                                       app.to("detailPage");
+                                                       },
+                                                       type: "Navigation",
+                                                       description: "{ProductID}",
+                                                       customData: [
+                                                                    new sap.ui.core.CustomData({
+                                                                                               key: "id",
+                                                                                               value: "{ProductID}"
+                                                                                               }),
+                                                                    ]
+                                                       });
+             oListStandardNoImageNoHeader.bindAggregation("items", {
+                                                          path: "/Products",
+                                                          template: itemTemplate
+                                                          });
+             
+             appStartPage.addContent(oListStandardNoImageNoHeader);
+             
+             // detail page
+             var listDetail1 = new sap.m.List({
+                                              headerText: "Product Information",
+                                              inset: false
+                                              });
+             var listDetail2 = new sap.m.List({
+                                              headerText: "Supplier Details",
+                                              inset: false
+                                              });
+             listDetail1.addItem(new sap.m.DisplayListItem(	{ value: "{ProductID}"     , label: "ID"     }));
+             listDetail1.addItem(new sap.m.DisplayListItem(	{ value: "{ProductName}" , label: "Name" }));
+             listDetail1.addItem(new sap.m.DisplayListItem(	{ value: "{UnitPrice}" , label: "Price" }));
+             
+             listDetail2.bindContext("Supplier");
+             listDetail2.addItem(new sap.m.DisplayListItem(	{ value: "{SupplierName}"   , label: "Company"   }));
+             listDetail2.addItem(new sap.m.DisplayListItem(	{ value: "{Address}"   , label: "Street"   }));
+             listDetail2.addItem(new sap.m.DisplayListItem(	{ value: "{City}"      , label: "City"      }));
+             listDetail2.addItem(new sap.m.DisplayListItem(	{ value: "{Country}"   , label: "Country"   }));
+             listDetail2.addItem(new sap.m.DisplayListItem(	{ value: "{PostalCode}", label: "Postal Code"}));
+             
+             var detailPage = new sap.m.Page("detailPage", {
+                                             title : "Product Details",
+                                             showNavButton : true,
+                                             navButtonText : "Products",
+                                             navButtonTap : function() {
+                                             app.back();
+                                             },
+                                             content: [
+                                                       listDetail1,
+                                                       listDetail2
+                                                       ]
+                                             });
+             
+             // data access
+             function getServiceUrl(sServiceUrl) {
+             var sOrigin = window.location.protocol + "//" + window.location.hostname
+             + (window.location.port ? ":" + window.location.port : "");
+             if (!jQuery.sap.startsWith(sServiceUrl, sOrigin)) {
+             return "proxy/" + sServiceUrl.replace("://", "/");
+             } else {
+             return sServiceUrl.substring(sOrigin.length);
+             }
+             };
+             var sServiceUrl = "http://services.odata.org/Northwind/Northwind.svc/";
+             //sServiceUrl = getServiceUrl(sServiceUrl);
+             var busyDialog = (busyDialog) ? busyDialog : new sap.m.BusyDialog('busyDialog',{text:'Loading Northwind Data', title: 'Loading'});
+             $(function(){
+               var oModel = new sap.ui.model.odata.ODataModel(sServiceUrl, true);
+               oModel.setSizeLimit(20);
+               oModel.attachRequestFailed(function(evt) {
+                                          alert("Server error: " + evt.getParameter("message") + " - " + evt.getParameter("statusText"));
+                                          });
+               
+               jQuery.sap.log.debug(oModel);
+               // BusyDialog
+               oModel.attachRequestSent(function(){busyDialog.open();});
+               oModel.attachRequestCompleted(function(){busyDialog.close();});
+               oCore = sap.ui.getCore().setModel(oModel);
+               });
+             
+             
+             app.addPage(appStartPage).addPage(detailPage);
+             app.placeAt("content");
+             
+             
+             // history handling
+             jQuery.sap.require("jquery.sap.history");
+             jQuery.sap.history({
+                                routes: [{
+                                         path: "detailPage",
+                                         handler: function(params, navType) {
+                                         if (navType === jQuery.sap.history.NavType.Back) app.back();
+                                         else {
+                                         detailPage.setBindingContext(params.ctx);
+                                         app.to("detailPage");
+                                         }
+                                         }
+                                         }],
+                                defaultHandler: function(navType) {
+                                (navType === jQuery.sap.history.NavType.Back) ?  app.back() : app.to("startPage");
+                                }
+                                });
+             })();
+            </script>
+        
+	</head>
+	<body id="body" class="sapUiBody">
+		<div id="content"></div>
+	</body>
+</html>
